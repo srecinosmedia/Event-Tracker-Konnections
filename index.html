@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konnectee Event Tracker</title>
+  
+  <!-- React, ReactDOM, and Babel for JSX -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // Import icons from lucide
+    const { Calendar, CheckSquare, Square, Plus, Tag, X } = lucide.icons;
+    
+    // Your component
+    const KonnecteeTracker = () => {
+      // Get current date information
+      const [currentDate, setCurrentDate] = React.useState(new Date());
+      const [selectedMonth, setSelectedMonth] = React.useState(currentDate.getMonth());
+      const [selectedYear, setSelectedYear] = React.useState(currentDate.getFullYear());
+      
+      // Event categories and their requirements
+      const eventCategories = [
+        { name: "Ribbon Cutting", required: 10, color: "bg-blue-100", textColor: "text-blue-700" },
+        { name: "Volunteer Event", required: 2, color: "bg-green-100", textColor: "text-green-700" },
+        { name: "Online Networking", required: 2, color: "bg-purple-100", textColor: "text-purple-700" },
+        { name: "Mixer", required: 2, color: "bg-yellow-100", textColor: "text-yellow-700" },
+        { name: "Meeting with Agenda", required: 2, color: "bg-red-100", textColor: "text-red-700" },
+        { name: "Luncheon", required: 1, color: "bg-pink-100", textColor: "text-pink-700" },
+        { name: "Trade Show", required: 1, color: "bg-indigo-100", textColor: "text-indigo-700" }
+      ];
+
+      // State for events and modals
+      const [events, setEvents] = React.useState([
+        // Example pre-filled events
+        {
+          name: "Chamber Ribbon Cutting",
+          category: "Ribbon Cutting",
+          date: new Date(selectedYear, selectedMonth, 15),
+          completed: false,
+          id: 1
+        },
+        {
+          name: "Community Cleanup",
+          category: "Volunteer Event",
+          date: new Date(selectedYear, selectedMonth, 8),
+          completed: true,
+          id: 2
+        },
+        {
+          name: "Beach Cleanup",
+          category: "Volunteer Event",
+          date: new Date(selectedYear, selectedMonth, 22),
+          completed: true,
+          id: 3
+        }
+      ]);
+      
+      const [showAddEventModal, setShowAddEventModal] = React.useState(false);
+      const [showViewEventModal, setShowViewEventModal] = React.useState(false);
+      const [selectedDate, setSelectedDate] = React.useState(null);
+      const [selectedEvent, setSelectedEvent] = React.useState(null);
+      
+      // Form state for adding events
+      const [newEventName, setNewEventName] = React.useState("");
+      const [newEventCategory, setNewEventCategory] = React.useState("Ribbon Cutting");
+      const [newEventDate, setNewEventDate] = React.useState("");
+      const [newEventCompleted, setNewEventCompleted] = React.useState(false);
+
+      // Helper functions
+      function getDaysInMonth(year, month) {
+        return new Date(year, month + 1, 0).getDate();
+      }
+
+      function getFirstDayOfMonth(year, month) {
+        return new Date(year, month, 1).getDay();
+      }
+
+      // Format date as YYYY-MM-DD for input fields
+      function formatDateForInput(date) {
+        const d = new Date(date);
+        let month = '' + (d.getMonth() + 1);
+        let day = '' + d.getDate();
+        const year = d.getFullYear();
+
+        if (month.length < 2) month = '0' + month;
+        if (day.length < 2) day = '0' + day;
+
+        return [year, month, day].join('-');
+      }
+
+      // Handle toggling event completion status
+      const toggleEventStatus = (eventId) => {
+        setEvents(events.map(event => 
+          event.id === eventId ? {...event, completed: !event.completed} : event
+        ));
+      };
+
+      // Add new event
+      const addEvent = () => {
+        if (newEventName && newEventCategory && newEventDate) {
+          const newEvent = {
+            name: newEventName,
+            category: newEventCategory,
+            date: new Date(newEventDate),
+            completed: newEventCompleted,
+            id: Date.now() // Simple unique ID
+          };
+          
+          setEvents([...events, newEvent]);
+          setShowAddEventModal(false);
+          resetNewEventForm();
+        }
+      };
+      
+      // Delete event
+      const deleteEvent = (eventId) => {
+        setEvents(events.filter(event => event.id !== eventId));
+        setShowViewEventModal(false);
+      };
+      
+      // Reset form fields
+      const resetNewEventForm = () => {
+        setNewEventName("");
+        setNewEventCategory("Ribbon Cutting");
+        setNewEventDate("");
+        setNewEventCompleted(false);
+      };
+
+      // Open add event modal with a specific date
+      const openAddEventModalForDate = (date) => {
+        setSelectedDate(date);
+        setNewEventDate(formatDateForInput(date));
+        setShowAddEventModal(true);
+      };
+      
+      // Open view event modal for a specific event
+      const openViewEventModal = (event) => {
+        setSelectedEvent(event);
+        setShowViewEventModal(true);
+      };
+
+      // Handle month navigation
+      const goToPreviousMonth = () => {
+        if (selectedMonth === 0) {
+          setSelectedMonth(11);
+          setSelectedYear(selectedYear - 1);
+        } else {
+          setSelectedMonth(selectedMonth - 1);
+        }
+      };
+
+      const goToNextMonth = () => {
+        if (selectedMonth === 11) {
+          setSelectedMonth(0);
+          setSelectedYear(selectedYear + 1);
+        } else {
+          setSelectedMonth(selectedMonth + 1);
+        }
+      };
+
+      // Generate calendar cells
+      const renderCalendar = () => {
+        const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
+        const firstDayOfMonth = getFirstDayOfMonth(selectedYear, selectedMonth);
+        const days = [];
+        
+        // Filter events for current month
+        const monthEvents = events.filter(event => 
+          event.date && 
+          event.date.getMonth() === selectedMonth && 
+          event.date.getFullYear() === selectedYear
+        );
+
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < firstDayOfMonth; i++) {
+          days.push(<div key={`empty-${i}`} className="p-2 bg-gray-100 h-28"></div>);
+        }
+
+        // Add cells for each day of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+          const currentDay = new Date(selectedYear, selectedMonth, day);
+          const dayEvents = monthEvents.filter(event => 
+            event.date.getDate() === day
+          );
+
+          days.push(
+            <div key={day} className="p-2 border border-gray-200 h-28 overflow-y-auto relative group">
+              <div className="font-bold">{day}</div>
+              
+              {dayEvents.map((event) => {
+                const categoryInfo = eventCategories.find(cat => cat.name === event.category);
+                return (
+                  <div 
+                    key={event.id} 
+                    className={`text-xs p-1 my-1 rounded cursor-pointer flex items-center ${categoryInfo?.color} ${event.completed ? 'border-l-4 border-green-500' : ''}`}
+                    onClick={() => openViewEventModal(event)}
+                  >
+                    <span className={`truncate ${categoryInfo?.textColor}`}>{event.name}</span>
+                  </div>
+                );
+              })}
+              
+              {/* Add event button appears on hover */}
+              <button
+                className="absolute top-1 right-1 bg-blue-100 text-blue-600 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => openAddEventModalForDate(new Date(selectedYear, selectedMonth, day))}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          );
+        }
+
+        return days;
+      };
+
+      // Get event counts by category
+      const getEventCountsByCategory = () => {
+        const counts = {};
+        eventCategories.forEach(category => {
+          counts[category.name] = {
+            total: category.required,
+            completed: events.filter(e => e.category === category.name && e.completed).length
+          };
+        });
+        return counts;
+      };
+
+      const eventCounts = getEventCountsByCategory();
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      return (
+        <div className="max-w-6xl mx-auto p-4">
+          <h1 className="text-2xl font-bold mb-6">Konnectee Event Tracker</h1>
+          
+          {/* Calendar Section - Displayed First */}
+          <div className="bg-white p-4 rounded shadow mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Calendar className="mr-2" />
+                Calendar View
+              </h2>
+              
+              <div className="flex items-center">
+                <button 
+                  onClick={goToPreviousMonth}
+                  className="px-3 py-1 bg-gray-200 rounded mr-2"
+                >
+                  ◀
+                </button>
+                <div className="font-medium text-lg">
+                  {monthNames[selectedMonth]} {selectedYear}
+                </div>
+                <button 
+                  onClick={goToNextMonth}
+                  className="px-3 py-1 bg-gray-200 rounded ml-2"
+                >
+                  ▶
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setSelectedDate(new Date(selectedYear, selectedMonth, 1));
+                    setShowAddEventModal(true);
+                  }}
+                  className="ml-4 px-3 py-1 bg-blue-600 text-white rounded flex items-center"
+                >
+                  <Plus size={16} className="mr-1" /> Add Event
+                </button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="text-center font-medium text-sm py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1">
+              {renderCalendar()}
+            </div>
+            
+            {/* Event Type Legend */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {eventCategories.map((category) => (
+                <div key={category.name} className="flex items-center text-xs">
+                  <div className={`w-3 h-3 rounded ${category.color} mr-1`}></div>
+                  <span>{category.name}</span>
+                </div>
+              ))}
+              <div className="flex items-center text-xs ml-4">
+                <div className="w-3 h-3 border-l-4 border-green-500 mr-1"></div>
+                <span>Completed</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Requirements Tracking Section */}
+          <div className="bg-white p-4 rounded shadow">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <CheckSquare className="mr-2" />
+              Event Requirements Progress
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {eventCategories.map((category) => {
+                const count = eventCounts[category.name];
+                const progressPercent = (count.completed / count.total) * 100;
+                
+                return (
+                  <div key={category.name} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium">{category.name}</h3>
+                      <span className={`text-sm ${category.textColor}`}>
+                        {count.completed}/{count.total} Complete
+                      </span>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                        className="bg-green-600 h-2.5 rounded-full" 
+                        style={{ width: `${progressPercent}%` }}
+                      ></div>
+                    </div>
+                    
+                    {/* List of events for this category */}
+                    <div className="mt-2 max-h-32 overflow-y-auto">
+                      {events
+                        .filter(event => event.category === category.name)
+                        .sort((a, b) => a.date - b.date)
+                        .map(event => (
+                          <div key={event.id} className="flex items-center text-sm my-1">
+                            <button 
+                              onClick={() => toggleEventStatus(event.id)}
+                              className="mr-2 focus:outline-none"
+                            >
+                              {event.completed ? 
+                                <CheckSquare className="text-green-600" size={16} /> : 
+                                <Square className="text-gray-400" size={16} />
+                              }
+                            </button>
+                            <span 
+                              className={`cursor-pointer ${event.completed ? "line-through text-gray-500" : ""}`}
+                              onClick={() => openViewEventModal(event)}
+                            >
+                              {event.name}
+                            </span>
+                            <span className="ml-auto text-xs text-gray-500">
+                              {event.date.toLocaleDateString()}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* Add Event Modal */}
+          {showAddEventModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white p-6 rounded-lg max-w-md w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium">Add New Event</h3>
+                  <button onClick={() => setShowAddEventModal(false)} className="text-gray-500">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block mb-1 text-sm font-medium">
+                      Event Name
+                    </label>
+                    <input 
+                      type="text" 
+                      value={newEventName}
+                      onChange={(e) => setNewEventName(e.target.value)}
+                      className="w-full p-2 border rounded"
+                      placeholder="Enter event name"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-1 text-sm font-medium">
+                      Event Type
+                    </label>
+                    <select
+                      value={newEventCategory}
+                      onChange={(e) => setNewEventCategory(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      {eventCategories.map(cat => (
+                        <option key={cat.name} value={cat.name}>
+                          {cat.name} ({eventCounts[cat.name].completed}/{cat.required})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-1 text-sm font-medium">
+                      Event Date
+                    </label>
+                    <input 
+                      type="date" 
+                      value={newEventDate}
+                      onChange={(e) => setNewEventDate(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      id="completedCheckbox"
+                      checked={newEventCompleted}
+                      onChange={(e) => setNewEventCompleted(e.target.checked)}
+                      className="mr-2"
+                    />
+                    <label htmlFor="completedCheckbox" className="text-sm">
+                      Mark as completed
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-2 mt-6">
+                  <button 
+                    onClick={() => setShowAddEventModal(false)}
+                    className="px-4 py-2 border rounded"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={addEvent}
+                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                    disabled={!newEventName || !newEventCategory || !newEventDate}
+                  >
+                    Add Event
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* View/Edit Event Modal */}
+          {showViewEventModal && selectedEvent && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white p-6 rounded-lg max-w-md w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium">Event Details</h3>
+                  <button onClick={() => setShowViewEventModal(false)} className="text-gray-500">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="mb-4">
+                  <div className="flex items-center mb-2">
+                    <Tag size={16} className="mr-2" />
+                    <span className="text-sm text-gray-600">Event Type:</span>
+                    <span className="ml-2 font-medium">{selectedEvent.category}</span>
+                  </div>
+                  
+                  <div className="mb-2">
+                    <h4 className="text-xl font-medium">{selectedEvent.name}</h4>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <span className="text-sm text-gray-600">Date:</span>
+                    <span className="ml-2">{selectedEvent.date.toLocaleDateString()}</span>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      id="viewCompletedCheckbox"
+                      checked={selectedEvent.completed}
+                      onChange={() => toggleEventStatus(selectedEvent.id)}
+                      className="mr-2"
+                    />
+                    <label htmlFor="viewCompletedCheckbox">
+                      Completed
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between mt-6">
+                  <button 
+                    onClick={() => deleteEvent(selectedEvent.id)}
+                    className="px-4 py-2 bg-red-600 text-white rounded"
+                  >
+                    Delete Event
+                  </button>
+                  <button 
+                    onClick={() => setShowViewEventModal(false)}
+                    className="px-4 py-2 bg-gray-200 rounded"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+    
+    // Render the component
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<KonnecteeTracker />);
+  </script>
+</body>
+</html>
